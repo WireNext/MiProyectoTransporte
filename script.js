@@ -1,37 +1,41 @@
 /**
  * @function parsearCSV
  * @description Convierte una cadena de texto GTFS (CSV) a un array de objetos.
- * Asume que la primera línea es la cabecera (nombres de las propiedades).
+ * Esta versión es robusta para manejar espacios en blanco y saltos de línea.
  * @param {string} csvText - La cadena de texto crudo del archivo.
  * @returns {Array<Object>} Un array de objetos con las propiedades definidas por la cabecera.
  */
 function parsearCSV(csvText) {
     if (!csvText) return [];
 
-    // Dividir en líneas, limpiar espacios en blanco al inicio/final del archivo
-    const lineas = csvText.trim().split('\n');
-    if (lineas.length === 0) return [];
+    // Usar split(/\r?\n/) para manejar saltos de línea de Windows (\r\n) y Unix (\n).
+    const lineas = csvText.trim().split(/\r?\n/);
+    if (lineas.length <= 1) return [];
 
-    // Extraer la cabecera y limpiar/sanear los nombres de columna
+    // 1. Extraer y limpiar la cabecera
     const cabeceras = lineas[0].split(',').map(h => h.trim());
     
     const datos = [];
-    // Iterar desde la segunda línea (índice 1) para obtener los datos
+    
+    // 2. Iterar sobre las filas de datos
     for (let i = 1; i < lineas.length; i++) {
-        // Usar una expresión regular para manejar CSV que pueda tener comas dentro de comillas
-        const valores = lineas[i].match(/(?:"[^"]*"|[^,])+/g) || lineas[i].split(',');
+        // Usar split(',') asumiendo que el formato no usa comas dentro de comillas.
+        const valores = lineas[i].split(',');
         
-        if (valores.length !== cabeceras.length) continue; // Ignorar líneas con un número incorrecto de columnas
+        // Limpiar la línea y verificar la longitud.
+        if (lineas[i].trim() === '' || valores.length !== cabeceras.length) continue;
 
         const objeto = {};
         for (let j = 0; j < cabeceras.length; j++) {
-            // Asigna el valor, limpiando posibles comillas o espacios
-            objeto[cabeceras[j]] = valores[j].trim().replace(/^"(.*)"$/, '$1');
+            // Asignar el valor de la columna, limpiando espacios en blanco.
+            objeto[cabeceras[j]] = valores[j] ? valores[j].trim().replace(/^"(.*)"$/, '$1') : '';
         }
         datos.push(objeto);
     }
     return datos;
 }
+
+// ----------------------------------------------------------------------
 
 /**
  * @function cargarDatosGTFS
@@ -44,7 +48,7 @@ async function cargarDatosGTFS() {
         const fileExtension = '.txt';
 
         // 1. CARGA DE DATOS (Texto Plano)
-        // He incluido todos los archivos que añadiste, aunque solo se usen 5
+        // Se cargan todos los archivos especificados, aunque solo se usen 5
         const [routesTexto, tripsTexto, stopsTexto, stopTimesTexto, calendarTexto, shapesTexto, agencyTexto, feedInfoTexto, frequencesTexto] = await Promise.all([
             fetch(baseURL + 'routes' + fileExtension).then(r => r.text()), 
             fetch(baseURL + 'trips' + fileExtension).then(r => r.text()),
@@ -58,18 +62,15 @@ async function cargarDatosGTFS() {
         ]);
         
         // 2. PROCESAMIENTO DE DATOS (Parseo CSV)
-        // Solo parseamos los que necesita iniciarMapa:
         const routes = parsearCSV(routesTexto);
         const trips = parsearCSV(tripsTexto);
         const stops = parsearCSV(stopsTexto);
         const stopTimes = parsearCSV(stopTimesTexto);
-        // shapes se parsea como array para agruparlo después
         const shapesArray = parsearCSV(shapesTexto); 
 
         console.log("✅ Datos cargados y procesados correctamente.");
         
         // 3. INICIAR MAPA
-        // Pasamos los arrays de objetos ya parseados
         iniciarMapa(stops, stopTimes, trips, routes, shapesArray);
 
     } catch (e) {
@@ -79,16 +80,16 @@ async function cargarDatosGTFS() {
 }
 
 // ----------------------------------------------------------------------
-// FUNCIÓN INICIAR MAPA (Corregida para usar los datos parseados)
-// ----------------------------------------------------------------------
 
 function iniciarMapa(stops, stopTimes, trips, routes, shapesArray) {
+    // Configuración del mapa
     const map = L.map('map').setView([39.9864, -0.0513], 14);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
+    // Icono de la parada
     const busDivIcon = L.divIcon({
         html: `<div style="
       background: #0078A8; 
@@ -127,11 +128,13 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray) {
 
     const clusterGroup = L.markerClusterGroup();
 
-    // Ahora 'stops' vuelve a ser un array y el forEach funciona.
+    // 1. DIBUJAR PARADAS
     stops.forEach(stop => {
-        // Asegurarse de que lat y lon son números
+        // Asegurarse de que lat y lon son números (esto resuelve el problema de visibilidad)
         const lat = parseFloat(stop.stop_lat);
         const lon = parseFloat(stop.stop_lon);
+        
+        // Si las coordenadas no son válidas, se omite el marcador.
         if (isNaN(lat) || isNaN(lon)) return; 
         
         const marker = L.marker([lat, lon], {
@@ -213,8 +216,7 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray) {
 
     map.addLayer(clusterGroup);
 
-    // Dibujar shapes
-    // Agrupamos el array de puntos de shapes por su shape_id para replicar el comportamiento original
+    // 2. DIBUJAR SHAPES (Rutas)
     const shapesMap = shapesArray.reduce((acc, pt) => {
         acc[pt.shape_id] = acc[pt.shape_id] || [];
         acc[pt.shape_id].push(pt);
