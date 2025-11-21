@@ -1,0 +1,9 @@
+stop_id,stop_code,stop_name,stop_lat,stop_lon,stop_url,zone_id,location_type,parent_station,stop_timezone,wheelchair_boarding,level_id,platform_code
+01,,Vila-Real,39.93695128609761,-0.10093412829900217,,,,,,,,
+02,,Almassora,39.94559024277004,-0.06343259558985892,,,,,,,,
+03,,Av. Valencia,39.97595369872718,-0.04854337018909405,,,,,,,,
+04,,Pl. País Valencià,39.97951322551714,-0.04281864838009142,,,,,,,,
+05,,Teatre Principal,39.983964075489325,-0.03781136852134637,,,,,,,,
+06,,Pl. Cardona Vives,39.98596974908355,-0.03536835364391777,,,,,,,,
+07,,Pl del Primer Molí,39.993134534119065,-0.032816038154265925,,,,,,,,
+08,,Joaquñin Sanchis Miralles,39.99890479770886,-0.032202818277596634,,,,,,,,
