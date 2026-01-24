@@ -3,15 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mapa de Paradas GTFS</title>
+  <title>Mapa de Paradas GTFS - Castellón</title>
+  
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+  
   <style>
     body { margin: 0; padding: 0; }
     #map { height: 100vh; width: 100%; }
     
-    /* Estilo para el parpadeo de buses que vienen ya */
+    /* Estilo para el parpadeo de buses inminentes */
     @keyframes parpadeo {
       0%, 100% { opacity: 1; }
       50% { opacity: 0; }
@@ -23,7 +25,14 @@
     }
     .popup-list {
       margin: 5px 0 0 0;
-      padding-left: 20px;
+      padding-left: 15px;
+      list-style-type: none;
+    }
+    .popup-list li {
+      margin-bottom: 5px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 2px;
+      font-size: 13px;
     }
   </style>
 </head>
