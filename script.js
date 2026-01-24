@@ -1,9 +1,16 @@
-// Función para normalizar nombres y evitar duplicados por Vila-Real / Vila Real
+/**
+ * Normaliza textos para evitar duplicados por variaciones como "Vila-Real" vs "Vila Real".
+ */
 const normalizar = (t) => t ? t.toLowerCase().replace(/[-]/g, ' ').trim() : '';
 
+/**
+ * Convierte el CSV a Array de Objetos.
+ */
 function parsearCSV(csvText) {
     if (!csvText) return [];
     const lineas = csvText.trim().split(/\r?\n/);
+    if (lineas.length <= 1) return [];
+
     const cabeceras = lineas[0].split(',').map(h => h.trim());
     return lineas.slice(1).map(linea => {
         const valores = linea.split(',');
@@ -15,6 +22,9 @@ function parsearCSV(csvText) {
     }).filter(o => Object.keys(o).length === cabeceras.length);
 }
 
+/**
+ * Carga de archivos GTFS.
+ */
 async function cargarDatosGTFS() {
     try {
         const [routes, trips, stops, stopTimes, shapes] = await Promise.all([
@@ -24,15 +34,19 @@ async function cargarDatosGTFS() {
             fetch('gtfs/stop_times.txt').then(r => r.text()).then(parsearCSV),
             fetch('gtfs/shapes.txt').then(r => r.text()).then(parsearCSV)
         ]);
+
         iniciarMapa(stops, stopTimes, trips, routes, shapes);
     } catch (e) {
-        console.error("Error cargando archivos:", e);
+        console.error("Error cargando archivos GTFS:", e);
     }
 }
 
 function iniciarMapa(stops, stopTimes, trips, routes, shapesArray) {
     const map = L.map('map').setView([39.9864, -0.0513], 14);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
 
     const clusterGroup = L.markerClusterGroup();
     const busIcon = L.divIcon({
@@ -40,13 +54,15 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray) {
         className: '', iconSize: [24, 24], iconAnchor: [12, 12]
     });
 
+    // 1. PROCESAR PARADAS
     stops.forEach(stop => {
         const marker = L.marker([parseFloat(stop.stop_lat), parseFloat(stop.stop_lon)], { icon: busIcon });
 
-        marker.on('click', function() {
+        // Evento click: Crea un popup nuevo cada vez para evitar bloqueos
+        marker.on('click', function(e) {
             const ahora = new Date();
             
-            // 1. Buscar horarios para esta parada
+            // Recopilar horarios brutos
             const proximos = stopTimes
                 .filter(st => st.stop_id === stop.stop_id)
                 .map(st => {
@@ -59,7 +75,7 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray) {
                     dSalida.setHours(h, m, s);
                     
                     let diff = (dSalida - ahora) / 60000;
-                    if (diff < -120) diff += 1440; 
+                    if (diff < -120) diff += 1440; // Ajuste media noche
 
                     return {
                         linea: route.route_short_name,
@@ -71,7 +87,7 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray) {
                 .filter(h => h && h.diffMin >= -1)
                 .sort((a, b) => a.diffMin - b.diffMin);
 
-            // 2. Quitar duplicados
+            // De-duplicación (ignora viajes repetidos por calendario laborable/finde)
             const vistos = new Set();
             const unicos = [];
             proximos.forEach(h => {
@@ -82,34 +98,37 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray) {
                 }
             });
 
-            // 3. Crear HTML
-            let html = `<div class="popup-container"><strong>${stop.stop_name}</strong><br><hr>`;
+            // Generar HTML
+            let html = `<div style="min-width:180px;"><strong>${stop.stop_name}</strong><br><hr>`;
             if (unicos.length === 0) {
-                html += "No hay más servicios hoy.";
+                html += "Sin servicios próximos.";
             } else {
                 unicos.slice(0, 5).forEach(h => {
                     let tiempoTxt = h.diffMin < 60 
                         ? `<span class="${h.diffMin <= 1 ? 'parpadeo' : ''}">en ${Math.max(0, h.diffMin)} min</span>`
                         : h.hora;
                     
-                    html += `<div style="margin-bottom:5px;">
-                                <span class="linea-nombre">${h.linea}</span> 
-                                <span class="destino-texto">${h.destino}</span>: 
+                    html += `<div style="margin-bottom:6px;">
+                                <span style="font-weight:bold; background:#eee; padding:2px 4px; border-radius:3px;">${h.linea}</span> 
+                                <span style="font-size:0.9em; color:#444;">${h.destino}</span>: 
                                 <strong>${tiempoTxt}</strong>
                              </div>`;
                 });
             }
             html += `</div>`;
 
-            // 4. Vincular y abrir
-            this.bindPopup(html).openPopup();
+            // ABRIR POPUP (Forma dinámica: siempre funciona al re-pulsar)
+            L.popup()
+                .setLatLng(e.target.getLatLng())
+                .setContent(html)
+                .openOn(map);
         });
 
         clusterGroup.addLayer(marker);
     });
     map.addLayer(clusterGroup);
 
-    // Dibujar líneas de colores
+    // 2. DIBUJAR LÍNEAS CON COLORES OFICIALES
     const shapesMap = shapesArray.reduce((acc, pt) => {
         (acc[pt.shape_id] = acc[pt.shape_id] || []).push(pt);
         return acc;
