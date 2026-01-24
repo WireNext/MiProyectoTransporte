@@ -1,16 +1,15 @@
 /**
- * Normaliza textos para evitar duplicados por variaciones como "Vila-Real" vs "Vila Real".
+ * Normaliza nombres para evitar duplicados visuales por erratas en el GTFS
  */
 const normalizar = (t) => t ? t.toLowerCase().replace(/[-]/g, ' ').trim() : '';
 
 /**
- * Convierte el CSV a Array de Objetos.
+ * Parsea el CSV manejando posibles espacios
  */
 function parsearCSV(csvText) {
     if (!csvText) return [];
     const lineas = csvText.trim().split(/\r?\n/);
     if (lineas.length <= 1) return [];
-
     const cabeceras = lineas[0].split(',').map(h => h.trim());
     return lineas.slice(1).map(linea => {
         const valores = linea.split(',');
@@ -23,30 +22,43 @@ function parsearCSV(csvText) {
 }
 
 /**
- * Carga de archivos GTFS.
+ * Detecta qué service_id (01, 02, etc.) están activos HOY
  */
+function obtenerServiciosActivos(calendar) {
+    const diasSemana = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const hoy = new Date();
+    const nombreDiaHoy = diasSemana[hoy.getDay()];
+    const fechaActual = hoy.toISOString().slice(0, 10).replace(/-/g, ''); // Formato YYYYMMDD
+
+    return calendar.filter(s => {
+        const dInicio = s.start_date;
+        const dFin = s.end_date;
+        const circulaHoy = s[nombreDiaHoy] === '1';
+        return fechaActual >= dInicio && fechaActual <= dFin && circulaHoy;
+    }).map(s => s.service_id);
+}
+
 async function cargarDatosGTFS() {
     try {
-        const [routes, trips, stops, stopTimes, shapes] = await Promise.all([
+        const [routes, trips, stops, stopTimes, shapes, calendar] = await Promise.all([
             fetch('gtfs/routes.txt').then(r => r.text()).then(parsearCSV),
             fetch('gtfs/trips.txt').then(r => r.text()).then(parsearCSV),
             fetch('gtfs/stops.txt').then(r => r.text()).then(parsearCSV),
             fetch('gtfs/stop_times.txt').then(r => r.text()).then(parsearCSV),
-            fetch('gtfs/shapes.txt').then(r => r.text()).then(parsearCSV)
+            fetch('gtfs/shapes.txt').then(r => r.text()).then(parsearCSV),
+            fetch('gtfs/calendar.txt').then(r => r.text()).then(parsearCSV)
         ]);
 
-        iniciarMapa(stops, stopTimes, trips, routes, shapes);
+        const serviciosActivos = obtenerServiciosActivos(calendar);
+        iniciarMapa(stops, stopTimes, trips, routes, shapes, serviciosActivos);
     } catch (e) {
-        console.error("Error cargando archivos GTFS:", e);
+        console.error("Error cargando GTFS:", e);
     }
 }
 
-function iniciarMapa(stops, stopTimes, trips, routes, shapesArray) {
+function iniciarMapa(stops, stopTimes, trips, routes, shapesArray, serviciosActivos) {
     const map = L.map('map').setView([39.9864, -0.0513], 14);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap'
-    }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
     const clusterGroup = L.markerClusterGroup();
     const busIcon = L.divIcon({
@@ -54,28 +66,28 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray) {
         className: '', iconSize: [24, 24], iconAnchor: [12, 12]
     });
 
-    // 1. PROCESAR PARADAS
     stops.forEach(stop => {
         const marker = L.marker([parseFloat(stop.stop_lat), parseFloat(stop.stop_lon)], { icon: busIcon });
 
-        // Evento click: Crea un popup nuevo cada vez para evitar bloqueos
         marker.on('click', function(e) {
             const ahora = new Date();
             
-            // Recopilar horarios brutos
-            const proximos = stopTimes
+            const horarios = stopTimes
                 .filter(st => st.stop_id === stop.stop_id)
                 .map(st => {
                     const trip = trips.find(t => t.trip_id === st.trip_id);
-                    const route = routes.find(r => r.route_id === trip?.route_id);
-                    if (!trip || !route) return null;
+                    // FILTRO DE CALENDARIO: Solo procesar si el service_id está activo hoy
+                    if (!trip || !serviciosActivos.includes(trip.service_id)) return null;
+
+                    const route = routes.find(r => r.route_id === trip.route_id);
+                    if (!route) return null;
 
                     const [h, m, s] = st.departure_time.split(':').map(Number);
                     const dSalida = new Date(ahora);
-                    dSalida.setHours(h, m, s);
+                    dSalida.setHours(h, m, s, 0);
                     
                     let diff = (dSalida - ahora) / 60000;
-                    if (diff < -120) diff += 1440; // Ajuste media noche
+                    if (diff < -120) diff += 1440; // Corrección para horarios nocturnos
 
                     return {
                         linea: route.route_short_name,
@@ -84,13 +96,13 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray) {
                         diffMin: Math.round(diff)
                     };
                 })
-                .filter(h => h && h.diffMin >= -1)
+                .filter(h => h !== null && h.diffMin >= -1)
                 .sort((a, b) => a.diffMin - b.diffMin);
 
-            // De-duplicación (ignora viajes repetidos por calendario laborable/finde)
+            // Eliminar duplicados técnicos (misma línea/hora/destino)
             const vistos = new Set();
             const unicos = [];
-            proximos.forEach(h => {
+            horarios.forEach(h => {
                 const clave = `${h.linea}-${h.hora}-${normalizar(h.destino)}`;
                 if (!vistos.has(clave)) {
                     vistos.add(clave);
@@ -98,57 +110,45 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray) {
                 }
             });
 
-            // Generar HTML
-            let html = `<div style="min-width:180px;"><strong>${stop.stop_name}</strong><br><hr>`;
+            let html = `<div style="min-width:180px;"><strong>${stop.stop_name}</strong><hr>`;
             if (unicos.length === 0) {
-                html += "Sin servicios próximos.";
+                html += "No hay buses programados para hoy.";
             } else {
                 unicos.slice(0, 5).forEach(h => {
-                    let tiempoTxt = h.diffMin < 60 
-                        ? `<span class="${h.diffMin <= 1 ? 'parpadeo' : ''}">en ${Math.max(0, h.diffMin)} min</span>`
+                    const tiempo = h.diffMin < 60 
+                        ? `<span class="${h.diffMin <= 1 ? 'parpadeo' : ''}">en ${Math.max(0, h.diffMin)} min</span>` 
                         : h.hora;
                     
                     html += `<div style="margin-bottom:6px;">
-                                <span style="font-weight:bold; background:#eee; padding:2px 4px; border-radius:3px;">${h.linea}</span> 
-                                <span style="font-size:0.9em; color:#444;">${h.destino}</span>: 
-                                <strong>${tiempoTxt}</strong>
-                             </div>`;
+                        <span style="font-weight:bold; background:#eee; padding:2px 4px; border-radius:3px;">${h.linea}</span> 
+                        <span style="font-size:0.85em; color:#555;">${h.destino}</span>: <strong>${tiempo}</strong>
+                    </div>`;
                 });
             }
             html += `</div>`;
 
-            // ABRIR POPUP (Forma dinámica: siempre funciona al re-pulsar)
-            L.popup()
-                .setLatLng(e.target.getLatLng())
-                .setContent(html)
-                .openOn(map);
+            L.popup().setLatLng(e.target.getLatLng()).setContent(html).openOn(map);
         });
 
         clusterGroup.addLayer(marker);
     });
+
     map.addLayer(clusterGroup);
 
-    // 2. DIBUJAR LÍNEAS CON COLORES OFICIALES
+    // Dibujar shapes con los colores de routes.txt
     const shapesMap = shapesArray.reduce((acc, pt) => {
         (acc[pt.shape_id] = acc[pt.shape_id] || []).push(pt);
         return acc;
     }, {});
 
-    Object.keys(shapesMap).forEach(shapeId => {
-        const puntos = shapesMap[shapeId]
-            .sort((a, b) => parseInt(a.shape_pt_sequence) - parseInt(b.shape_pt_sequence))
-            .map(p => [parseFloat(p.shape_pt_lat), parseFloat(p.shape_pt_lon)]);
+    Object.keys(shapesMap).forEach(sId => {
+        const pts = shapesMap[sId].sort((a, b) => a.shape_pt_sequence - b.shape_pt_sequence)
+                                  .map(p => [parseFloat(p.shape_pt_lat), parseFloat(p.shape_pt_lon)]);
+        const trip = trips.find(t => t.shape_id === sId);
+        const route = routes.find(r => r.route_id === trip?.route_id);
+        let color = route?.route_color ? `#${route.route_color.replace('#','')}` : '#3388ff';
 
-        const tripAsociado = trips.find(t => t.shape_id === shapeId);
-        let colorRuta = '#3388ff';
-        if (tripAsociado) {
-            const ruta = routes.find(r => r.route_id === tripAsociado.route_id);
-            if (ruta && ruta.route_color) colorRuta = `#${ruta.route_color.replace('#','')}`;
-        }
-
-        if (puntos.length > 0) {
-            L.polyline(puntos, { color: colorRuta, weight: 4, opacity: 0.7 }).addTo(map);
-        }
+        L.polyline(pts, { color, weight: 4, opacity: 0.7 }).addTo(map);
     });
 }
 
