@@ -1,7 +1,3 @@
-/**
- * @function parsearCSV
- * Convierte texto CSV a Array de Objetos.
- */
 function parsearCSV(csvText) {
     if (!csvText) return [];
     const lineas = csvText.trim().split(/\r?\n/);
@@ -16,7 +12,6 @@ function parsearCSV(csvText) {
 
         const objeto = {};
         for (let j = 0; j < cabeceras.length; j++) {
-            // Limpiar comillas y espacios
             objeto[cabeceras[j]] = valores[j] ? valores[j].trim().replace(/^"(.*)"$/, '$1') : '';
         }
         datos.push(objeto);
@@ -24,10 +19,6 @@ function parsearCSV(csvText) {
     return datos;
 }
 
-/**
- * @function cargarDatosGTFS
- * Carga y procesa los archivos .txt de la carpeta gtfs/
- */
 async function cargarDatosGTFS() {
     try {
         const baseURL = 'gtfs/';
@@ -47,22 +38,17 @@ async function cargarDatosGTFS() {
         const stopTimes = parsearCSV(stopTimesTxt);
         const shapesArray = parsearCSV(shapesTxt); 
 
-        console.log("✅ Datos GTFS cargados con éxito.");
         iniciarMapa(stops, stopTimes, trips, routes, shapesArray);
 
     } catch (e) {
-        console.error("❌ Error al cargar GTFS:", e);
-        alert("Error cargando los datos. Revisa la consola para más detalles.");
+        console.error("Error cargando GTFS:", e);
     }
 }
 
 function iniciarMapa(stops, stopTimes, trips, routes, shapesArray) {
-    // Coordenadas centradas por defecto (Castellón)
     const map = L.map('map').setView([39.9864, -0.0513], 14);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
     const busDivIcon = L.divIcon({
         html: `<div style="background:#0078A8; border-radius:50%; width:25px; height:25px; display:flex; justify-content:center; align-items:center; color:white; font-size:14px; border:2px solid white;">🚌</div>`,
@@ -73,66 +59,72 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray) {
 
     const clusterGroup = L.markerClusterGroup();
 
-    // 1. PROCESAR PARADAS
     stops.forEach(stop => {
         const lat = parseFloat(stop.stop_lat);
         const lon = parseFloat(stop.stop_lon);
         if (isNaN(lat) || isNaN(lon)) return; 
         
         const marker = L.marker([lat, lon], { icon: busDivIcon });
-        marker.bindPopup("Cargando horarios...");
+        marker.bindPopup("Cargando...");
 
         marker.on('click', () => {
             const ahora = new Date();
 
-            const horarios = stopTimes
+            let horariosRaw = stopTimes
                 .filter(st => st.stop_id === stop.stop_id)
                 .map(st => {
                     const trip = trips.find(t => t.trip_id === st.trip_id);
                     if (!trip) return null;
-
                     const ruta = routes.find(r => r.route_id === trip.route_id);
                     if (!ruta) return null;
 
-                    // Parsear hora de salida
                     const [hh, mm, ss] = st.departure_time.split(':').map(Number);
                     const fechaSalida = new Date(ahora);
                     fechaSalida.setHours(hh, mm, ss, 0);
                     
                     let diffMin = (fechaSalida - ahora) / 60000;
-                    if (diffMin < -120) diffMin += 1440; // Ajuste para servicios de madrugada
+                    if (diffMin < -120) diffMin += 1440; 
 
                     return {
                         linea: ruta.route_short_name || 'Bus',
                         direccion: trip.trip_headsign || 'Sin dirección',
-                        hora: st.departure_time,
-                        diffMin
+                        hora: st.departure_time.substring(0, 5), // Solo HH:MM
+                        diffMin: diffMin
                     };
                 })
-                .filter(h => h !== null && h.diffMin >= -1) // Solo servicios futuros o en curso
+                .filter(h => h !== null && h.diffMin >= -1)
                 .sort((a, b) => a.diffMin - b.diffMin);
 
-            if (horarios.length === 0) {
-                marker.setPopupContent(`<strong>${stop.stop_name}</strong><br>No hay más servicios hoy.`);
+            // --- LÓGICA PARA ELIMINAR DUPLICADOS ---
+            const vistos = new Set();
+            const horariosUnicos = [];
+
+            for (const h of horariosRaw) {
+                // Creamos una clave única: "L1-UJI-12:30"
+                const clave = `${h.linea}-${h.direccion}-${h.hora}`;
+                if (!vistos.has(clave)) {
+                    vistos.add(clave);
+                    horariosUnicos.push(h);
+                }
+            }
+
+            if (horariosUnicos.length === 0) {
+                marker.setPopupContent(`<strong>${stop.stop_name}</strong><br>No hay más servicios.`);
                 return;
             }
 
             let html = `<strong>${stop.stop_name}</strong><ul class="popup-list">`;
             
-            // Mostrar los próximos 5 servicios
-            horarios.slice(0, 5).forEach(h => {
+            horariosUnicos.slice(0, 5).forEach(h => {
                 let tiempoTexto = "";
-                
-                // REGLA: Menos de 60 min -> "en X min". Más de 60 min -> "HH:MM"
                 if (h.diffMin < 60) {
                     const min = Math.round(h.diffMin);
                     const clase = min <= 1 ? 'class="parpadeo"' : '';
                     tiempoTexto = `<span ${clase}>en ${min < 0 ? 0 : min} min</span>`;
                 } else {
-                    tiempoTexto = h.hora.substring(0, 5); 
+                    tiempoTexto = h.hora; 
                 }
-
-                html += `<li><b>${h.linea}</b> ${h.direccion}: ${tiempoTexto}</li>`;
+                html += `<li><span class="line-badge">${h.linea}</span> ${h.direccion}<br>${tiempoTexto}</li>`;
             });
 
             html += '</ul>';
@@ -144,7 +136,7 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray) {
 
     map.addLayer(clusterGroup);
 
-    // 2. DIBUJAR SHAPES (Rutas con color dinámico)
+    // Dibujo de rutas
     const shapesMap = shapesArray.reduce((acc, pt) => {
         acc[pt.shape_id] = acc[pt.shape_id] || [];
         acc[pt.shape_id].push(pt);
@@ -154,27 +146,16 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray) {
     for (const shapeId in shapesMap) {
         const puntos = shapesMap[shapeId].sort((a, b) => parseInt(a.shape_pt_sequence) - parseInt(b.shape_pt_sequence));
         const latlngs = puntos.map(pt => [parseFloat(pt.shape_pt_lat), parseFloat(pt.shape_pt_lon)]);
-
-        // Buscar color de la ruta
-        const tripEjemplo = trips.find(t => t.shape_id === shapeId);
-        let colorRuta = '#3388ff'; // Azul estándar de Leaflet por defecto
-
-        if (tripEjemplo) {
-            const ruta = routes.find(r => r.route_id === tripEjemplo.route_id);
-            if (ruta && ruta.route_color) {
-                colorRuta = ruta.route_color.startsWith('#') ? ruta.route_color : '#' + ruta.route_color;
-            }
+        const tripEj = trips.find(t => t.shape_id === shapeId);
+        let colorRuta = '#3388ff';
+        if (tripEj) {
+            const ruta = routes.find(r => r.route_id === tripEj.route_id);
+            if (ruta && ruta.route_color) colorRuta = '#' + ruta.route_color.replace('#','');
         }
-
         if (latlngs.length > 0) {
-             L.polyline(latlngs, {
-                color: colorRuta,
-                weight: 4,
-                opacity: 0.8
-            }).addTo(map);
+             L.polyline(latlngs, { color: colorRuta, weight: 4, opacity: 0.7 }).addTo(map);
         }
     }
 }
 
-// Ejecutar
 cargarDatosGTFS();
