@@ -1,0 +1,18 @@
+{
+  "viajes_cancelados": [],
+  "paradas_omitidas": [
+    {
+      "trip_id": "Castelló - VilaReal",
+      "stop_id": "all",
+      "motivo": "Huelga de transporte"
+    },
+    {
+      "trip_id": "UJI - GRAO",
+      "stop_id": "06",
+      "motivo": "Falla instalada en la calle"
+    }
+  ],
+  "avisos_paradas": {
+    "14": "Por obras en la estación podrian producirse demoras"
+  }
+}
