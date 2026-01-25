@@ -3,22 +3,32 @@
   "paradas_omitidas": [
     {
       "trip_id": "BCN - VLC",
-      "stop_id": "1002","1003",
-      "motivo": "Suspesa indefinidament la circulació de totes les línies de Catalunya per causes operatives i valoració de danys a la infraestructura. Es recomana l'ús d'altres mitjans de transport. La suspensió es mantindrà, com a mínim, durant tot aquest diumenge 25. Sense concreció de data de restabliment"
+      "stop_id": "1002",
+      "motivo": "Suspesa la circulació per danys a la infraestructura."
+    },
+    {
+      "trip_id": "BCN - VLC",
+      "stop_id": "1003",
+      "motivo": "Suspesa la circulació per danys a la infraestructura."
     },
     {
       "trip_id": "VLC - BCN",
-      "stop_id": "1002","1003",
-      "motivo": "Suspesa indefinidament la circulació de totes les línies de Catalunya per causes operatives i valoració de danys a la infraestructura. Es recomana l'ús d'altres mitjans de transport. La suspensió es mantindrà, com a mínim, durant tot aquest diumenge 25. Sense concreció de data de restabliment"
+      "stop_id": "1002",
+      "motivo": "Suspesa la circulació per danys a la infraestructura."
+    },
+    {
+      "trip_id": "VLC - BCN",
+      "stop_id": "1003",
+      "motivo": "Suspesa la circulació per danys a la infraestructura."
     },
     {
       "trip_id": "BCN - VLC",
       "stop_id": "1001",
-      "motivo": "Suspesa indefinidament la circulació de totes les línies de Catalunya per causes operatives i valoració de danys a la infraestructura. Es recomana l'ús d'altres mitjans de transport. La suspensió es mantindrà, com a mínim, durant tot aquest diumenge 25. Sense concreció de data de restabliment"
+      "motivo": "Suspesa la circulació per danys a la infraestructura."
     }
   ],
   "avisos_paradas": {
-    "1000": "Aquest tren acabará el seu recorregut a Castello per causes operatives i valoració de danys a la infraestructura Catalana",
-    "1001": "Aquest tren acabará el seu recorregut a Castello per causes operatives i valoració de danys a la infraestructura Catalana"
+    "1000": "Aquest tren acabará el seu recorregut a Castello per causes operatives.",
+    "1001": "Aquest tren acabará el seu recorregut a Castello per causes operatives."
   }
 }
