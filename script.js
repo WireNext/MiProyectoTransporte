@@ -22,6 +22,19 @@ function obtenerServiciosActivos(calendar) {
     return calendar.filter(s => s[nombreDiaHoy] === '1' && fechaActual >= s.start_date && fechaActual <= s.end_date).map(s => s.service_id);
 }
 
+// Función auxiliar para convertir "HH:MM:SS" a minutos totales desde las 00:00
+function aMinutos(horaStr) {
+    const [h, m] = horaStr.split(':').map(Number);
+    return h * 60 + m;
+}
+
+// Función para formatear minutos a "HH:MM"
+function aHHMM(minutosTotales) {
+    const h = Math.floor(minutosTotales / 60) % 24;
+    const m = minutosTotales % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}
+
 async function cargarDatosGTFS() {
     try {
         let incidencias = { viajes_cancelados: [], paradas_omitidas: [], avisos_paradas: {} };
@@ -30,21 +43,22 @@ async function cargarDatosGTFS() {
             if (resp.ok) incidencias = await resp.json();
         } catch (e) { console.warn("No se cargaron incidencias."); }
 
-        const [routes, trips, stops, stopTimes, shapes, calendar] = await Promise.all([
+        const [routes, trips, stops, stopTimes, shapes, calendar, frequencies] = await Promise.all([
             fetch('gtfs/routes.txt').then(r => r.text()).then(parsearCSV),
             fetch('gtfs/trips.txt').then(r => r.text()).then(parsearCSV),
             fetch('gtfs/stops.txt').then(r => r.text()).then(parsearCSV),
             fetch('gtfs/stop_times.txt').then(r => r.text()).then(parsearCSV),
             fetch('gtfs/shapes.txt').then(r => r.text()).then(parsearCSV),
-            fetch('gtfs/calendar.txt').then(r => r.text()).then(parsearCSV)
+            fetch('gtfs/calendar.txt').then(r => r.text()).then(parsearCSV),
+            fetch('gtfs/frequencies.txt').then(r => r.text()).then(parsearCSV) // <-- NUEVO
         ]);
 
         const serviciosActivos = obtenerServiciosActivos(calendar);
-        iniciarMapa(stops, stopTimes, trips, routes, shapes, serviciosActivos, incidencias);
+        iniciarMapa(stops, stopTimes, trips, routes, shapes, serviciosActivos, incidencias, frequencies);
     } catch (e) { console.error("Error:", e); }
 }
 
-function iniciarMapa(stops, stopTimes, trips, routes, shapesArray, serviciosActivos, incidencias) {
+function iniciarMapa(stops, stopTimes, trips, routes, shapesArray, serviciosActivos, incidencias, frequencies) {
     const map = L.map('map').setView([39.9864, -0.0513], 14);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
@@ -60,43 +74,74 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray, serviciosActi
         marker.on('click', function(e) {
             const ahora = new Date();
             const horaActualMin = ahora.getHours() * 60 + ahora.getMinutes();
+            let horariosEncontrados = [];
 
-            const horarios = stopTimes
-                .filter(st => st.stop_id === stop.stop_id)
-                .map(st => {
-                    const trip = trips.find(t => t.trip_id === st.trip_id);
-                    if (!trip || !serviciosActivos.includes(trip.service_id)) return null;
+            // 1. Filtrar los stopTimes que pertenecen a esta parada
+            const misStopTimes = stopTimes.filter(st => st.stop_id === stop.stop_id);
 
-                    const route = routes.find(r => r.route_id === trip.route_id);
-                    const [h, m] = st.departure_time.split(':').map(Number);
-                    const horaBusMin = h * 60 + m;
-                    if (horaBusMin < horaActualMin - 2) return null;
+            misStopTimes.forEach(st => {
+                const trip = trips.find(t => t.trip_id === st.trip_id);
+                if (!trip || !serviciosActivos.includes(trip.service_id)) return;
 
-                    const horaCorta = st.departure_time.substring(0, 5);
-                    const canceladoTotal = incidencias.viajes_cancelados?.find(v => v.trip_id === trip.trip_id && (v.hora === horaCorta || v.hora === "all"));
-                    const paradaOmitida = incidencias.paradas_omitidas?.find(v => v.trip_id === trip.trip_id && (v.stop_id === stop.stop_id || v.stop_id === "all"));
+                const route = routes.find(r => r.route_id === trip.route_id);
+                const freq = frequencies.find(f => f.trip_id === trip.trip_id);
 
-                    return {
-                        linea: route.route_short_name,
-                        destino: trip.trip_headsign,
-                        hora: horaCorta,
-                        diffMin: horaBusMin - horaActualMin,
-                        incidencia: canceladoTotal || paradaOmitida,
-                        // GUARDAMOS COLORES DE LA RUTA
-                        colorFondo: route.route_color ? `#${route.route_color.replace('#','')}` : '#eee',
-                        colorTexto: route.route_text_color ? `#${route.route_text_color.replace('#','')}` : '#000'
-                    };
-                })
-                .filter(h => h !== null)
-                .sort((a, b) => a.diffMin - b.diffMin);
+                // Si hay frecuencia definida para este viaje
+                if (freq) {
+                    const startMin = aMinutos(freq.start_time);
+                    const endMin = aMinutos(freq.end_time);
+                    const interval = parseInt(freq.headway_secs) / 60;
+                    const offsetDesdeInicio = aMinutos(st.departure_time) - aMinutos(stopTimes.find(s => s.trip_id === st.trip_id && s.stop_sequence === "1").departure_time);
 
-            const vistos = new Set();
-            const unicos = [];
-            horarios.forEach(h => {
-                const clave = `${h.linea}-${h.hora}-${normalizar(h.destino)}`;
-                if (!vistos.has(clave)) { vistos.add(clave); unicos.push(h); }
+                    for (let t = startMin; t <= endMin; t += interval) {
+                        const horaPasoMin = t + offsetDesdeInicio;
+                        if (horaPasoMin >= horaActualMin - 2) {
+                            const horaHhmm = aHHMM(horaPasoMin);
+                            horariosEncontrados.push({
+                                trip_id: trip.trip_id,
+                                linea: route.route_short_name,
+                                destino: trip.trip_headsign,
+                                hora: horaHhmm,
+                                diffMin: horaPasoMin - horaActualMin,
+                                colorFondo: route.route_color ? `#${route.route_color.replace('#','')}` : '#eee',
+                                colorTexto: route.route_text_color ? `#${route.route_text_color.replace('#','')}` : '#000'
+                            });
+                        }
+                    }
+                } else {
+                    // Si no hay frecuencia, usamos la hora fija de stop_times.txt
+                    const horaBusMin = aMinutos(st.departure_time);
+                    if (horaBusMin >= horaActualMin - 2) {
+                        horariosEncontrados.push({
+                            trip_id: trip.trip_id,
+                            linea: route.route_short_name,
+                            destino: trip.trip_headsign,
+                            hora: st.departure_time.substring(0, 5),
+                            diffMin: horaBusMin - horaActualMin,
+                            colorFondo: route.route_color ? `#${route.route_color.replace('#','')}` : '#eee',
+                            colorTexto: route.route_text_color ? `#${route.route_text_color.replace('#','')}` : '#000'
+                        });
+                    }
+                }
             });
 
+            // 2. Aplicar Incidencias y De-duplicar
+            const unicos = [];
+            const vistos = new Set();
+
+            horariosEncontrados.sort((a, b) => a.diffMin - b.diffMin).forEach(h => {
+                const clave = `${h.linea}-${h.hora}-${normalizar(h.destino)}`;
+                if (!vistos.has(clave)) {
+                    vistos.add(clave);
+                    // Comprobar incidencias
+                    const canceladoTotal = incidencias.viajes_cancelados?.find(v => v.trip_id === h.trip_id && (v.hora === h.hora || v.hora === "all"));
+                    const paradaOmitida = incidencias.paradas_omitidas?.find(v => v.trip_id === h.trip_id && (v.stop_id === stop.stop_id || v.stop_id === "all"));
+                    h.incidencia = canceladoTotal || paradaOmitida;
+                    unicos.push(h);
+                }
+            });
+
+            // 3. Generar HTML
             let html = `<div style="min-width:220px;"><strong>${stop.stop_name}</strong><br>`;
             if (incidencias.avisos_paradas[stop.stop_id]) {
                 html += `<div style="background:#fff3cd; color:#856404; padding:5px; border-radius:4px; font-size:0.8em; margin:5px 0; border:1px solid #ffeeba;">⚠️ ${incidencias.avisos_paradas[stop.stop_id]}</div>`;
@@ -107,14 +152,12 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray, serviciosActi
                 html += "Sin servicios próximos.";
             } else {
                 unicos.slice(0, 5).forEach(h => {
-                    const esMalaNoticia = h.incidencia;
-                    const tiempoLabel = (h.diffMin < 60 && !esMalaNoticia) ? `en ${Math.max(0, h.diffMin)} min` : h.hora;
-                    const estiloHora = esMalaNoticia ? "text-decoration: line-through; color: red;" : "font-weight:bold;";
-
+                    const tiempoLabel = (h.diffMin < 60 && !h.incidencia) ? `en ${Math.max(0, h.diffMin)} min` : h.hora;
+                    const estiloHora = h.incidencia ? "text-decoration: line-through; color: red;" : "font-weight:bold;";
                     html += `<div style="margin-bottom:8px;">
                         <span style="font-weight:bold; background:${h.colorFondo}; color:${h.colorTexto}; padding:2px 6px; border-radius:3px; display:inline-block; min-width:25px; text-align:center;">${h.linea}</span> 
                         <span style="font-size:0.85em; margin-left:4px;">${h.destino}</span>: <strong style="${estiloHora}">${tiempoLabel}</strong>
-                        ${esMalaNoticia ? `<br><span style="color:red; font-size:0.75em;">🚫 ${h.incidencia.motivo}</span>` : ''}
+                        ${h.incidencia ? `<br><span style="color:red; font-size:0.75em;">🚫 ${h.incidencia.motivo}</span>` : ''}
                     </div>`;
                 });
             }
@@ -125,7 +168,7 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray, serviciosActi
     });
     map.addLayer(clusterGroup);
 
-    // Shapes (Líneas en el mapa)
+    // Dibujado de Shapes (sin cambios)
     const shapesMap = shapesArray.reduce((acc, pt) => {
         (acc[pt.shape_id] = acc[pt.shape_id] || []).push(pt);
         return acc;
