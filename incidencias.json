@@ -1,34 +1,25 @@
 {
-  "viajes_cancelados": [],
+  "viajes_cancelados": [
+        {
+      "trip_id": "BCN- VLC",
+      "hora": "all",
+      "motivo": "Suspesa la circulació per danys a la infraestructura Catalana. Per el moment no hi ha previsió per recuperar la frequencia"
+    },
+    {
+      "trip_id": "VLC - BCN",
+      "hora": "all",
+      "motivo": "Suspesa la circulació per danys a la infraestructura Catalana. Per el moment no hi ha previsió per recuperar la frequencia"
+    }
+  ],
+
   "paradas_omitidas": [
     {
-      "trip_id": "BCN - VLC",
-      "stop_id": "1002",
-      "motivo": "Suspesa la circulació per danys a la infraestructura."
-    },
-    {
-      "trip_id": "BCN - VLC",
-      "stop_id": "1003",
-      "motivo": "Suspesa la circulació per danys a la infraestructura."
-    },
-    {
-      "trip_id": "VLC - BCN",
-      "stop_id": "1002",
-      "motivo": "Suspesa la circulació per danys a la infraestructura."
-    },
-    {
-      "trip_id": "VLC - BCN",
-      "stop_id": "1003",
-      "motivo": "Suspesa la circulació per danys a la infraestructura."
-    },
-    {
-      "trip_id": "BCN - VLC",
-      "stop_id": "1001",
-      "motivo": "Suspesa la circulació per danys a la infraestructura."
+      "trip_id": "",
+      "stop_id": "",
+      "motivo": ""
     }
   ],
   "avisos_paradas": {
-    "1000": "Aquest tren acabará el seu recorregut a Castello per causes operatives.",
-    "1001": "Aquest tren acabará el seu recorregut a Castello per causes operatives."
+    "": ""
   }
 }
