@@ -28,7 +28,7 @@ async function cargarDatosGTFS() {
         try {
             const resp = await fetch('incidencias.json');
             if (resp.ok) incidencias = await resp.json();
-        } catch (e) { console.warn("Incidencias no cargadas."); }
+        } catch (e) { console.warn("No se cargaron incidencias."); }
 
         const [routes, trips, stops, stopTimes, shapes, calendar] = await Promise.all([
             fetch('gtfs/routes.txt').then(r => r.text()).then(parsearCSV),
@@ -41,9 +41,7 @@ async function cargarDatosGTFS() {
 
         const serviciosActivos = obtenerServiciosActivos(calendar);
         iniciarMapa(stops, stopTimes, trips, routes, shapes, serviciosActivos, incidencias);
-    } catch (e) {
-        console.error("Error GTFS:", e);
-    }
+    } catch (e) { console.error("Error:", e); }
 }
 
 function iniciarMapa(stops, stopTimes, trips, routes, shapesArray, serviciosActivos, incidencias) {
@@ -72,14 +70,16 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray, serviciosActi
                     const route = routes.find(r => r.route_id === trip.route_id);
                     const [h, m] = st.departure_time.split(':').map(Number);
                     const horaBusMin = h * 60 + m;
-
                     if (horaBusMin < horaActualMin - 2) return null;
+
                     const horaCorta = st.departure_time.substring(0, 5);
                     
-                    // LÓGICA DE INCIDENCIAS MEJORADA
-                    const canceladoTotal = incidencias.viajes_cancelados?.find(v => v.trip_id === trip.trip_id && v.hora === horaCorta);
+                    // LÓGICA DE CANCELACIÓN TOTAL (Acepta "all" en hora)
+                    const canceladoTotal = incidencias.viajes_cancelados?.find(v => 
+                        v.trip_id === trip.trip_id && (v.hora === horaCorta || v.hora === "all")
+                    );
                     
-                    // Aquí comprobamos si hay una omisión para esta parada O si es para "all" (toda la línea)
+                    // LÓGICA DE PARADA OMITIDA (Acepta "all" en stop_id)
                     const paradaOmitida = incidencias.paradas_omitidas?.find(v => 
                         v.trip_id === trip.trip_id && (v.stop_id === stop.stop_id || v.stop_id === "all")
                     );
@@ -112,17 +112,14 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray, serviciosActi
                 html += "Sin servicios próximos.";
             } else {
                 unicos.slice(0, 5).forEach(h => {
-                    const esIncidencia = h.incidencia;
-                    const tiempoLabel = (h.diffMin < 60 && !esIncidencia) 
-                        ? `<span class="${h.diffMin <= 1 ? 'parpadeo' : ''}">en ${Math.max(0, h.diffMin)} min</span>` 
-                        : h.hora;
-                    
-                    const estiloHora = esIncidencia ? "text-decoration: line-through; color: red;" : "font-weight:bold;";
+                    const esMalaNoticia = h.incidencia;
+                    const tiempoLabel = (h.diffMin < 60 && !esMalaNoticia) ? `en ${Math.max(0, h.diffMin)} min` : h.hora;
+                    const estiloHora = esMalaNoticia ? "text-decoration: line-through; color: red;" : "font-weight:bold;";
 
                     html += `<div style="margin-bottom:8px;">
                         <span style="font-weight:bold; background:#eee; padding:2px 4px; border-radius:3px;">${h.linea}</span> 
                         <span style="font-size:0.85em;">${h.destino}</span>: <strong style="${estiloHora}">${tiempoLabel}</strong>
-                        ${esIncidencia ? `<br><span style="color:red; font-size:0.75em;">🚫 ${h.incidencia.motivo}</span>` : ''}
+                        ${esMalaNoticia ? `<br><span style="color:red; font-size:0.75em;">🚫 ${h.incidencia.motivo}</span>` : ''}
                     </div>`;
                 });
             }
@@ -133,7 +130,7 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray, serviciosActi
     });
     map.addLayer(clusterGroup);
 
-    // Dibujado de Shapes
+    // Shapes
     const shapesMap = shapesArray.reduce((acc, pt) => {
         (acc[pt.shape_id] = acc[pt.shape_id] || []).push(pt);
         return acc;
