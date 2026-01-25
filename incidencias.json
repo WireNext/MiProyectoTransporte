@@ -2,17 +2,23 @@
   "viajes_cancelados": [],
   "paradas_omitidas": [
     {
-      "trip_id": "Castelló - VilaReal",
-      "stop_id": "all",
-      "motivo": "Huelga de transporte"
+      "trip_id": "BCN - VLC",
+      "stop_id": "1002","1003",
+      "motivo": "Suspesa indefinidament la circulació de totes les línies de Catalunya per causes operatives i valoració de danys a la infraestructura. Es recomana l'ús d'altres mitjans de transport. La suspensió es mantindrà, com a mínim, durant tot aquest diumenge 25. Sense concreció de data de restabliment"
     },
     {
-      "trip_id": "UJI - GRAO",
-      "stop_id": "06",
-      "motivo": "Falla instalada en la calle"
+      "trip_id": "VLC - BCN",
+      "stop_id": "1002","1003",
+      "motivo": "Suspesa indefinidament la circulació de totes les línies de Catalunya per causes operatives i valoració de danys a la infraestructura. Es recomana l'ús d'altres mitjans de transport. La suspensió es mantindrà, com a mínim, durant tot aquest diumenge 25. Sense concreció de data de restabliment"
+    },
+    {
+      "trip_id": "BCN - VLC",
+      "stop_id": "1001",
+      "motivo": "Suspesa indefinidament la circulació de totes les línies de Catalunya per causes operatives i valoració de danys a la infraestructura. Es recomana l'ús d'altres mitjans de transport. La suspensió es mantindrà, com a mínim, durant tot aquest diumenge 25. Sense concreció de data de restabliment"
     }
   ],
   "avisos_paradas": {
-    "14": "Por obras en la estación podrian producirse demoras"
+    "1000": "Aquest tren acabará el seu recorregut a Castello per causes operatives i valoració de danys a la infraestructura Catalana",
+    "1001": "Aquest tren acabará el seu recorregut a Castello per causes operatives i valoració de danys a la infraestructura Catalana"
   }
 }
