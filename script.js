@@ -73,23 +73,18 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray, serviciosActi
                     if (horaBusMin < horaActualMin - 2) return null;
 
                     const horaCorta = st.departure_time.substring(0, 5);
-                    
-                    // LÓGICA DE CANCELACIÓN TOTAL (Acepta "all" en hora)
-                    const canceladoTotal = incidencias.viajes_cancelados?.find(v => 
-                        v.trip_id === trip.trip_id && (v.hora === horaCorta || v.hora === "all")
-                    );
-                    
-                    // LÓGICA DE PARADA OMITIDA (Acepta "all" en stop_id)
-                    const paradaOmitida = incidencias.paradas_omitidas?.find(v => 
-                        v.trip_id === trip.trip_id && (v.stop_id === stop.stop_id || v.stop_id === "all")
-                    );
+                    const canceladoTotal = incidencias.viajes_cancelados?.find(v => v.trip_id === trip.trip_id && (v.hora === horaCorta || v.hora === "all"));
+                    const paradaOmitida = incidencias.paradas_omitidas?.find(v => v.trip_id === trip.trip_id && (v.stop_id === stop.stop_id || v.stop_id === "all"));
 
                     return {
                         linea: route.route_short_name,
                         destino: trip.trip_headsign,
                         hora: horaCorta,
                         diffMin: horaBusMin - horaActualMin,
-                        incidencia: canceladoTotal || paradaOmitida
+                        incidencia: canceladoTotal || paradaOmitida,
+                        // GUARDAMOS COLORES DE LA RUTA
+                        colorFondo: route.route_color ? `#${route.route_color.replace('#','')}` : '#eee',
+                        colorTexto: route.route_text_color ? `#${route.route_text_color.replace('#','')}` : '#000'
                     };
                 })
                 .filter(h => h !== null)
@@ -117,8 +112,8 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray, serviciosActi
                     const estiloHora = esMalaNoticia ? "text-decoration: line-through; color: red;" : "font-weight:bold;";
 
                     html += `<div style="margin-bottom:8px;">
-                        <span style="font-weight:bold; background:#eee; padding:2px 4px; border-radius:3px;">${h.linea}</span> 
-                        <span style="font-size:0.85em;">${h.destino}</span>: <strong style="${estiloHora}">${tiempoLabel}</strong>
+                        <span style="font-weight:bold; background:${h.colorFondo}; color:${h.colorTexto}; padding:2px 6px; border-radius:3px; display:inline-block; min-width:25px; text-align:center;">${h.linea}</span> 
+                        <span style="font-size:0.85em; margin-left:4px;">${h.destino}</span>: <strong style="${estiloHora}">${tiempoLabel}</strong>
                         ${esMalaNoticia ? `<br><span style="color:red; font-size:0.75em;">🚫 ${h.incidencia.motivo}</span>` : ''}
                     </div>`;
                 });
@@ -130,7 +125,7 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray, serviciosActi
     });
     map.addLayer(clusterGroup);
 
-    // Shapes
+    // Shapes (Líneas en el mapa)
     const shapesMap = shapesArray.reduce((acc, pt) => {
         (acc[pt.shape_id] = acc[pt.shape_id] || []).push(pt);
         return acc;
