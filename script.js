@@ -36,8 +36,8 @@ const aHHMM = (minutosTotales) => {
 
 // --- CONFIGURACIÓN DE REDES ---
 const REDES = [
-    { id: 'castellon', nombre: 'Castellón', folder: 'gtfs/castellon' },
-    { id: 'valencia', nombre: 'Valencia', folder: 'gtfs/valencia' }
+    { id: 'gva', nombre: 'Generalitat', folder: 'gtfs/gva' },
+    { id: 'renfe', nombre: 'renfe', folder: 'gtfs/renfe' }
 ];
 
 // --- MOTOR PRINCIPAL ---

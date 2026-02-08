@@ -1,0 +1,4 @@
+route_id,agency_id,route_short_name,route_long_name,route_desc,route_type,route_url,route_color,route_text_color
+2000,20000,VLC - BCN,Euromed Valencia - Barcelona,,2,,D100CA,000000
+5000,50,C6,Castello de la Plana                    -Valencia Nord,,2,,0D3386,FFFFFF
+5001,50,C6,Valencia Nord                           -Castello de la Plana,,2,,0D3386,FFFFFF
