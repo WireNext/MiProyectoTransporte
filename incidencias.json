@@ -1,19 +1,9 @@
 {
   "viajes_cancelados": [
         {
-      "trip_id": "BCN- VLC",
-      "hora": "11:45",
-      "motivo": "Suspesa la circulació per danys a la infraestructura Catalana. Per el moment no hi ha previsió per recuperar la frequencia"
-    },
-    {
-      "trip_id": "BCN- VLC",
-      "hora": "17:45",
-      "motivo": "Suspesa la circulació per danys a la infraestructura Catalana. Per el moment no hi ha previsió per recuperar la frequencia"
-    },
-    {
-      "trip_id": "VLC - BCN",
-      "hora": "18:20",
-      "motivo": "Suspesa la circulació per danys a la infraestructura Catalana. Per el moment no hi ha previsió per recuperar la frequencia"
+      "trip_id": "",
+      "hora": "",
+      "motivo": ""
     }
   ],
 
@@ -25,7 +15,6 @@
     }
   ],
   "avisos_paradas": {
-    "71801": "Durant el dilluns 26 s'anirá recuperant la circulació paulatinament",
-    "71500": "Durant el dilluns 26 s'anirá recuperant la circulació paulatinament"
+    "": ""
   }
 }
