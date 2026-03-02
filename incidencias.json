@@ -120,36 +120,37 @@
     {
       "trip_id": "GRAO - UJI",
       "stop_id": "8",
-      "hora_inicio": "22:30",
-      "hora_fin": "05:00",
+      "hora_inicio": "00:00",
+      "hora_fin": "23:59",
       "motivo": "Universitat tancada per Magdalena 2026"
     },
     {
       "trip_id": "GRAO - UJI (Finde)",
       "stop_id": "8",
-      "hora_inicio": "22:30",
-      "hora_fin": "05:00",
+      "hora_inicio": "00:00",
+      "hora_fin": "23:59",
       "motivo": "Universitat tancada per Magdalena 2026"
     },
     {
       "trip_id": "UJI - GRAO (Finde)",
       "stop_id": "8",
-      "hora_inicio": "22:30",
-      "hora_fin": "05:00",
+      "hora_inicio": "00:00",
+      "hora_fin": "23:59",
       "motivo": "Universitat tancada per Magdalena 2026"
     },    {
       "trip_id": "UJI - GRAO",
       "stop_id": "8",
-      "hora_inicio": "22:30",
-      "hora_fin": "05:00",
+      "hora_inicio": "00:00",
+      "hora_fin": "23:59",
       "motivo": "Universitat tancada per Magdalena 2026"
     }
 
   ],
   "avisos_paradas": {
     "07": "Degut a les mascletaes la parada romandrà tancada desde les 11:00 fins les 13:00",
-    "14": "Parada tancada per actuació",
-    "06": "Parada tancada per actuació"
+    "14": "Parada tancada per actuació de 22:30 a 05:00",
+    "06": "Parada tancada per actuació de 22:30 a 05:00",
+    "08": "Universitat tancada per Magdalena 2026"
 
   }
 }

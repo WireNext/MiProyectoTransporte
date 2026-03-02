@@ -22,7 +22,6 @@ function obtenerServiciosActivos(calendar) {
     return calendar.filter(s => s[nombreDiaHoy] === '1' && fechaActual >= s.start_date && fechaActual <= s.end_date).map(s => s.service_id);
 }
 
-// Función auxiliar para convertir "HH:MM:SS" o "HH:MM" a minutos totales
 function aMinutos(horaStr) {
     if (!horaStr) return 0;
     const partes = horaStr.split(':').map(Number);
@@ -31,7 +30,6 @@ function aMinutos(horaStr) {
     return h * 60 + m;
 }
 
-// Función para formatear minutos a "HH:MM"
 function aHHMM(minutosTotales) {
     const h = Math.floor(minutosTotales / 60) % 24;
     const m = minutosTotales % 60;
@@ -139,22 +137,23 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray, serviciosActi
                         v.trip_id === h.trip_id && (v.hora === h.hora || v.hora === "all")
                     );
 
-                    // B. Parada omitida con rango horario
+                    // B. Parada omitida con rango horario (Soporta paso de medianoche)
                     const paradaOmitida = incidencias.paradas_omitidas?.find(v => {
                         const coincideId = (v.trip_id === h.trip_id || v.trip_id === "all") && 
                                            (v.stop_id === stop.stop_id || v.stop_id === "all");
                         
                         if (!coincideId) return false;
-
-                        // Si no tiene horas definidas, se aplica siempre
                         if (!v.hora_inicio || !v.hora_fin) return true;
 
-                        // Comprobar si la hora programada del bus está en el rango
-                        const hBusMinutos = aMinutos(h.hora);
+                        const hBus = aMinutos(h.hora);
                         const hInicio = aMinutos(v.hora_inicio);
                         const hFin = aMinutos(v.hora_fin);
 
-                        return hBusMinutos >= hInicio && hBusMinutos <= hFin;
+                        if (hInicio <= hFin) {
+                            return hBus >= hInicio && hBus <= hFin;
+                        } else {
+                            return hBus >= hInicio || hBus <= hFin;
+                        }
                     });
 
                     h.incidencia = canceladoTotal || paradaOmitida;
@@ -204,5 +203,4 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray, serviciosActi
     });
 }
 
-// Ejecución inicial
 cargarDatosGTFS();
