@@ -35,9 +35,67 @@
       "hora_inicio": "11:00",
       "hora_fin": "13:00",
       "motivo": "Mascletà"
+    },
+    {
+      "trip_id": "GRAO - UJI",
+      "stop_id": "14",
+      "hora_inicio": "22:30",
+      "hora_fin": "05:00",
+      "motivo": "Actuació"
+    },
+    {
+      "trip_id": "GRAO - UJI (Finde)",
+      "stop_id": "14",
+      "hora_inicio": "22:30",
+      "hora_fin": "05:00",
+      "motivo": "Actuació"
+    },
+    {
+      "trip_id": "UJI - GRAO (Finde)",
+      "stop_id": "14",
+      "hora_inicio": "22:30",
+      "hora_fin": "05:00",
+      "motivo": "Actuació"
+    },    {
+      "trip_id": "UJI - GRAO",
+      "stop_id": "14",
+      "hora_inicio": "22:30",
+      "hora_fin": "05:00",
+      "motivo": "Actuació"
+    },
+    {
+      "trip_id": "GRAO - UJI",
+      "stop_id": "06",
+      "hora_inicio": "22:30",
+      "hora_fin": "05:00",
+      "motivo": "Actuació"
+    },
+    {
+      "trip_id": "GRAO - UJI (Finde)",
+      "stop_id": "06",
+      "hora_inicio": "22:30",
+      "hora_fin": "05:00",
+      "motivo": "Actuació"
+    },
+    {
+      "trip_id": "UJI - GRAO (Finde)",
+      "stop_id": "06",
+      "hora_inicio": "22:30",
+      "hora_fin": "05:00",
+      "motivo": "Actuació"
+    },    {
+      "trip_id": "UJI - GRAO",
+      "stop_id": "06",
+      "hora_inicio": "22:30",
+      "hora_fin": "05:00",
+      "motivo": "Actuació"
     }
+
   ],
   "avisos_paradas": {
-    "07": "Degut a les mascletaes la parada romandrà tancada desde les 11:00 fins les 13:00"
+    "07": "Degut a les mascletaes la parada romandrà tancada desde les 11:00 fins les 13:00",
+    "14": "Parada tancada per actuació",
+    "06": "Parada tancada per actuació"
+
   }
 }
