@@ -22,9 +22,12 @@ function obtenerServiciosActivos(calendar) {
     return calendar.filter(s => s[nombreDiaHoy] === '1' && fechaActual >= s.start_date && fechaActual <= s.end_date).map(s => s.service_id);
 }
 
-// Función auxiliar para convertir "HH:MM:SS" a minutos totales desde las 00:00
+// Función auxiliar para convertir "HH:MM:SS" o "HH:MM" a minutos totales
 function aMinutos(horaStr) {
-    const [h, m] = horaStr.split(':').map(Number);
+    if (!horaStr) return 0;
+    const partes = horaStr.split(':').map(Number);
+    const h = partes[0];
+    const m = partes[1] || 0;
     return h * 60 + m;
 }
 
@@ -50,7 +53,7 @@ async function cargarDatosGTFS() {
             fetch('gtfs/stop_times.txt').then(r => r.text()).then(parsearCSV),
             fetch('gtfs/shapes.txt').then(r => r.text()).then(parsearCSV),
             fetch('gtfs/calendar.txt').then(r => r.text()).then(parsearCSV),
-            fetch('gtfs/frequencies.txt').then(r => r.text()).then(parsearCSV) // <-- NUEVO
+            fetch('gtfs/frequencies.txt').then(r => r.text()).then(parsearCSV)
         ]);
 
         const serviciosActivos = obtenerServiciosActivos(calendar);
@@ -76,7 +79,6 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray, serviciosActi
             const horaActualMin = ahora.getHours() * 60 + ahora.getMinutes();
             let horariosEncontrados = [];
 
-            // 1. Filtrar los stopTimes que pertenecen a esta parada
             const misStopTimes = stopTimes.filter(st => st.stop_id === stop.stop_id);
 
             misStopTimes.forEach(st => {
@@ -86,22 +88,21 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray, serviciosActi
                 const route = routes.find(r => r.route_id === trip.route_id);
                 const freq = frequencies.find(f => f.trip_id === trip.trip_id);
 
-                // Si hay frecuencia definida para este viaje
                 if (freq) {
                     const startMin = aMinutos(freq.start_time);
                     const endMin = aMinutos(freq.end_time);
                     const interval = parseInt(freq.headway_secs) / 60;
-                    const offsetDesdeInicio = aMinutos(st.departure_time) - aMinutos(stopTimes.find(s => s.trip_id === st.trip_id && s.stop_sequence === "1").departure_time);
+                    const primeraSalida = stopTimes.find(s => s.trip_id === st.trip_id && s.stop_sequence === "1");
+                    const offsetDesdeInicio = aMinutos(st.departure_time) - aMinutos(primeraSalida.departure_time);
 
                     for (let t = startMin; t <= endMin; t += interval) {
                         const horaPasoMin = t + offsetDesdeInicio;
                         if (horaPasoMin >= horaActualMin - 2) {
-                            const horaHhmm = aHHMM(horaPasoMin);
                             horariosEncontrados.push({
                                 trip_id: trip.trip_id,
                                 linea: route.route_short_name,
                                 destino: trip.trip_headsign,
-                                hora: horaHhmm,
+                                hora: aHHMM(horaPasoMin),
                                 diffMin: horaPasoMin - horaActualMin,
                                 colorFondo: route.route_color ? `#${route.route_color.replace('#','')}` : '#eee',
                                 colorTexto: route.route_text_color ? `#${route.route_text_color.replace('#','')}` : '#000'
@@ -109,7 +110,6 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray, serviciosActi
                         }
                     }
                 } else {
-                    // Si no hay frecuencia, usamos la hora fija de stop_times.txt
                     const horaBusMin = aMinutos(st.departure_time);
                     if (horaBusMin >= horaActualMin - 2) {
                         horariosEncontrados.push({
@@ -133,9 +133,30 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray, serviciosActi
                 const clave = `${h.linea}-${h.hora}-${normalizar(h.destino)}`;
                 if (!vistos.has(clave)) {
                     vistos.add(clave);
-                    // Comprobar incidencias
-                    const canceladoTotal = incidencias.viajes_cancelados?.find(v => v.trip_id === h.trip_id && (v.hora === h.hora || v.hora === "all"));
-                    const paradaOmitida = incidencias.paradas_omitidas?.find(v => v.trip_id === h.trip_id && (v.stop_id === stop.stop_id || v.stop_id === "all"));
+
+                    // A. Cancelación total del viaje
+                    const canceladoTotal = incidencias.viajes_cancelados?.find(v => 
+                        v.trip_id === h.trip_id && (v.hora === h.hora || v.hora === "all")
+                    );
+
+                    // B. Parada omitida con rango horario
+                    const paradaOmitida = incidencias.paradas_omitidas?.find(v => {
+                        const coincideId = (v.trip_id === h.trip_id || v.trip_id === "all") && 
+                                           (v.stop_id === stop.stop_id || v.stop_id === "all");
+                        
+                        if (!coincideId) return false;
+
+                        // Si no tiene horas definidas, se aplica siempre
+                        if (!v.hora_inicio || !v.hora_fin) return true;
+
+                        // Comprobar si la hora programada del bus está en el rango
+                        const hBusMinutos = aMinutos(h.hora);
+                        const hInicio = aMinutos(v.hora_inicio);
+                        const hFin = aMinutos(v.hora_fin);
+
+                        return hBusMinutos >= hInicio && hBusMinutos <= hFin;
+                    });
+
                     h.incidencia = canceladoTotal || paradaOmitida;
                     unicos.push(h);
                 }
@@ -168,11 +189,12 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray, serviciosActi
     });
     map.addLayer(clusterGroup);
 
-    // Dibujado de Shapes (sin cambios)
+    // Dibujado de Shapes
     const shapesMap = shapesArray.reduce((acc, pt) => {
         (acc[pt.shape_id] = acc[pt.shape_id] || []).push(pt);
         return acc;
     }, {});
+    
     Object.keys(shapesMap).forEach(sId => {
         const pts = shapesMap[sId].sort((a, b) => a.shape_pt_sequence - b.shape_pt_sequence).map(p => [parseFloat(p.shape_pt_lat), parseFloat(p.shape_pt_lon)]);
         const trip = trips.find(t => t.shape_id === sId);
@@ -182,4 +204,5 @@ function iniciarMapa(stops, stopTimes, trips, routes, shapesArray, serviciosActi
     });
 }
 
+// Ejecución inicial
 cargarDatosGTFS();

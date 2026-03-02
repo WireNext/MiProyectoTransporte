@@ -9,9 +9,32 @@
 
   "paradas_omitidas": [
     {
-      "trip_id": "",
-      "stop_id": "",
-      "motivo": ""
+      "trip_id": "Castelló - VilaReal",
+      "stop_id": "07",
+      "hora_inicio": "10:00",
+      "hora_fin": "14:00",
+      "motivo": "Mascletà"
+    },
+    {
+      "trip_id": "Castelló - VilaReal (Finde)",
+      "stop_id": "07",
+      "hora_inicio": "10:00",
+      "hora_fin": "14:00",
+      "motivo": "Mascletà"
+    },
+    {
+      "trip_id": "Vila Real - Castelló (Finde)",
+      "stop_id": "07",
+      "hora_inicio": "10:00",
+      "hora_fin": "14:00",
+      "motivo": "Mascletà"
+    },
+    {
+      "trip_id": "Vila Real - Castelló",
+      "stop_id": "07",
+      "hora_inicio": "10:00",
+      "hora_fin": "14:00",
+      "motivo": "Mascletà"
     }
   ],
   "avisos_paradas": {
