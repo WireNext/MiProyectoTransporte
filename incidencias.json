@@ -89,6 +89,60 @@
       "hora_inicio": "22:30",
       "hora_fin": "05:00",
       "motivo": "Actuació"
+    },
+    {
+      "trip_id": "Castelló - VilaReal",
+      "stop_id": "06",
+      "hora_inicio": "22:30",
+      "hora_fin": "05:00",
+      "motivo": "Actuació"
+    },
+    {
+      "trip_id": "Castelló - VilaReal (Finde)",
+      "stop_id": "06",
+      "hora_inicio": "22:30",
+      "hora_fin": "05:00",
+      "motivo": "Actuació"
+    },
+    {
+      "trip_id": "Vila Real - Castelló (Finde)",
+      "stop_id": "06",
+      "hora_inicio": "22:30",
+      "hora_fin": "05:00",
+      "motivo": "Actuació"
+    },    {
+      "trip_id": "VilaReal - Castelló",
+      "stop_id": "06",
+      "hora_inicio": "22:30",
+      "hora_fin": "05:00",
+      "motivo": "Actuació"
+    },
+    {
+      "trip_id": "GRAO - UJI",
+      "stop_id": "8",
+      "hora_inicio": "22:30",
+      "hora_fin": "05:00",
+      "motivo": "Universitat tancada per Magdalena 2026"
+    },
+    {
+      "trip_id": "GRAO - UJI (Finde)",
+      "stop_id": "8",
+      "hora_inicio": "22:30",
+      "hora_fin": "05:00",
+      "motivo": "Universitat tancada per Magdalena 2026"
+    },
+    {
+      "trip_id": "UJI - GRAO (Finde)",
+      "stop_id": "8",
+      "hora_inicio": "22:30",
+      "hora_fin": "05:00",
+      "motivo": "Universitat tancada per Magdalena 2026"
+    },    {
+      "trip_id": "UJI - GRAO",
+      "stop_id": "8",
+      "hora_inicio": "22:30",
+      "hora_fin": "05:00",
+      "motivo": "Universitat tancada per Magdalena 2026"
     }
 
   ],
